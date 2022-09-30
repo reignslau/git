@@ -1568,8 +1568,8 @@ static void pp_init(struct parallel_processes *pp,
 {
 	unsigned int i;
 
-	if (jobs < 1)
-		jobs = online_cpus();
+	if (!jobs)
+		BUG("you must provide a non-zero number of jobs!");
 
 	pp->max_processes = jobs;
 
@@ -1843,7 +1843,7 @@ void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_tas
 				const char *tr2_category, const char *tr2_label)
 {
 	trace2_region_enter_printf(tr2_category, tr2_label, NULL, "max:%d",
-				   ((jobs < 1) ? online_cpus() : jobs));
+				   jobs);
 
 	run_processes_parallel(jobs, get_next_task, start_failure,
 			       task_finished, pp_cb);
