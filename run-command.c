@@ -1525,6 +1525,9 @@ struct parallel_processes {
 	int output_owner;
 	struct strbuf buffered_output; /* of finished children */
 };
+#define PARALLEL_PROCESSES_INIT { \
+	.buffered_output = STRBUF_INIT, \
+}
 
 static int default_start_failure(struct strbuf *out,
 				 void *pp_cb,
@@ -1589,11 +1592,8 @@ static void pp_init(struct parallel_processes *pp,
 	pp->shutdown = 0;
 	pp->ungroup = ungroup;
 	CALLOC_ARRAY(pp->children, jobs);
-	if (pp->ungroup)
-		pp->pfd = NULL;
-	else
+	if (!pp->ungroup)
 		CALLOC_ARRAY(pp->pfd, jobs);
-	strbuf_init(&pp->buffered_output, 0);
 
 	for (i = 0; i < jobs; i++) {
 		strbuf_init(&pp->children[i].err, 0);
@@ -1794,7 +1794,7 @@ void run_processes_parallel(unsigned int jobs,
 	int output_timeout = 100;
 	int spawn_cap = 4;
 	int ungroup = run_processes_parallel_ungroup;
-	struct parallel_processes pp;
+	struct parallel_processes pp = PARALLEL_PROCESSES_INIT;
 
 	/* unset for the next API user */
 	run_processes_parallel_ungroup = 0;
