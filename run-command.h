@@ -465,6 +465,13 @@ typedef int (*task_finished_fn)(int result,
 struct run_process_parallel_opts
 {
 	/**
+	 * tr2_category & tr2_label: sets the trace2 category and label for
+	 * logging. These must either be unset, or both of them must be set.
+	 */
+	const char *tr2_category;
+	const char *tr2_label;
+
+	/**
 	 * jobs: see 'jobs' in run_processes_parallel() below.
 	 */
 	int jobs;

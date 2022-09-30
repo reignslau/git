@@ -1784,29 +1784,25 @@ static int pp_collect_finished(struct parallel_processes *pp)
 	return result;
 }
 
-void run_processes_parallel(unsigned int jobs,
-			    get_next_task_fn get_next_task,
-			    start_failure_fn start_failure,
-			    task_finished_fn task_finished,
-			    void *pp_cb)
+static void run_processes_parallel_1(const struct run_process_parallel_opts *opts)
 {
 	int i, code;
 	int output_timeout = 100;
 	int spawn_cap = 4;
 	struct parallel_processes pp = PARALLEL_PROCESSES_INIT;
-	const struct run_process_parallel_opts opts = {
-		.jobs = jobs,
-		.get_next_task = get_next_task,
-		.start_failure = start_failure,
-		.task_finished = task_finished,
-		.ungroup = run_processes_parallel_ungroup,
-		.data = pp_cb,
-	};
+	/* options */
+	const char *tr2_category = opts->tr2_category;
+	const char *tr2_label = opts->tr2_label;
+	const int do_trace2 = tr2_category && tr2_label;
 
 	/* unset for the next API user */
 	run_processes_parallel_ungroup = 0;
 
-	pp_init(&pp, &opts);
+	if (do_trace2)
+		trace2_region_enter_printf(tr2_category, tr2_label, NULL,
+					   "max:%d", opts->jobs);
+
+	pp_init(&pp, opts);
 	while (1) {
 		for (i = 0;
 		    i < spawn_cap && !pp.shutdown &&
@@ -1823,7 +1819,7 @@ void run_processes_parallel(unsigned int jobs,
 		}
 		if (!pp.nr_processes)
 			break;
-		if (opts.ungroup) {
+		if (opts->ungroup) {
 			int i;
 
 			for (i = 0; i < pp.max_processes; i++)
@@ -1841,6 +1837,29 @@ void run_processes_parallel(unsigned int jobs,
 	}
 
 	pp_cleanup(&pp);
+
+	if (do_trace2)
+		trace2_region_leave(tr2_category, tr2_label, NULL);
+}
+
+void run_processes_parallel(unsigned int jobs,
+			    get_next_task_fn get_next_task,
+			    start_failure_fn start_failure,
+			    task_finished_fn task_finished,
+			    void *pp_cb)
+{
+	const struct run_process_parallel_opts opts = {
+		.jobs = jobs,
+		.ungroup = run_processes_parallel_ungroup,
+
+		.get_next_task = get_next_task,
+		.start_failure = start_failure,
+		.task_finished = task_finished,
+
+		.data = pp_cb,
+	};
+
+	run_processes_parallel_1(&opts);
 }
 
 void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_task,
@@ -1848,13 +1867,21 @@ void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_tas
 				task_finished_fn task_finished, void *pp_cb,
 				const char *tr2_category, const char *tr2_label)
 {
-	trace2_region_enter_printf(tr2_category, tr2_label, NULL, "max:%d",
-				   jobs);
+	const struct run_process_parallel_opts opts = {
+		.tr2_category = tr2_category,
+		.tr2_label = tr2_label,
 
-	run_processes_parallel(jobs, get_next_task, start_failure,
-			       task_finished, pp_cb);
+		.jobs = jobs,
+		.ungroup = run_processes_parallel_ungroup,
 
-	trace2_region_leave(tr2_category, tr2_label, NULL);
+		.get_next_task = get_next_task,
+		.start_failure = start_failure,
+		.task_finished = task_finished,
+
+		.data = pp_cb,
+	};
+
+	run_processes_parallel_1(&opts);
 }
 
 int run_auto_maintenance(int quiet)
