@@ -1500,8 +1500,8 @@ int run_processes_parallel_ungroup;
 struct parallel_processes {
 	void *data;
 
-	int max_processes;
-	int nr_processes;
+	unsigned int max_processes;
+	unsigned int nr_processes;
 
 	get_next_task_fn get_next_task;
 	start_failure_fn start_failure;
@@ -1560,20 +1560,21 @@ static void handle_children_on_signal(int signo)
 }
 
 static void pp_init(struct parallel_processes *pp,
-		    int n,
+		    unsigned int jobs,
 		    get_next_task_fn get_next_task,
 		    start_failure_fn start_failure,
 		    task_finished_fn task_finished,
 		    void *data, int ungroup)
 {
-	int i;
+	unsigned int i;
 
-	if (n < 1)
-		n = online_cpus();
+	if (jobs < 1)
+		jobs = online_cpus();
 
-	pp->max_processes = n;
+	pp->max_processes = jobs;
 
-	trace_printf("run_processes_parallel: preparing to run up to %d tasks", n);
+	trace_printf("run_processes_parallel: preparing to run up to %d tasks",
+		     jobs);
 
 	pp->data = data;
 	if (!get_next_task)
@@ -1587,14 +1588,14 @@ static void pp_init(struct parallel_processes *pp,
 	pp->output_owner = 0;
 	pp->shutdown = 0;
 	pp->ungroup = ungroup;
-	CALLOC_ARRAY(pp->children, n);
+	CALLOC_ARRAY(pp->children, jobs);
 	if (pp->ungroup)
 		pp->pfd = NULL;
 	else
-		CALLOC_ARRAY(pp->pfd, n);
+		CALLOC_ARRAY(pp->pfd, jobs);
 	strbuf_init(&pp->buffered_output, 0);
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < jobs; i++) {
 		strbuf_init(&pp->children[i].err, 0);
 		child_process_init(&pp->children[i].process);
 		if (pp->pfd) {
@@ -1783,7 +1784,7 @@ static int pp_collect_finished(struct parallel_processes *pp)
 	return result;
 }
 
-void run_processes_parallel(int n,
+void run_processes_parallel(unsigned int jobs,
 			    get_next_task_fn get_next_task,
 			    start_failure_fn start_failure,
 			    task_finished_fn task_finished,
@@ -1798,7 +1799,7 @@ void run_processes_parallel(int n,
 	/* unset for the next API user */
 	run_processes_parallel_ungroup = 0;
 
-	pp_init(&pp, n, get_next_task, start_failure, task_finished, pp_cb,
+	pp_init(&pp, jobs, get_next_task, start_failure, task_finished, pp_cb,
 		ungroup);
 	while (1) {
 		for (i = 0;
@@ -1836,15 +1837,15 @@ void run_processes_parallel(int n,
 	pp_cleanup(&pp);
 }
 
-void run_processes_parallel_tr2(int n, get_next_task_fn get_next_task,
+void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_task,
 				start_failure_fn start_failure,
 				task_finished_fn task_finished, void *pp_cb,
 				const char *tr2_category, const char *tr2_label)
 {
 	trace2_region_enter_printf(tr2_category, tr2_label, NULL, "max:%d",
-				   ((n < 1) ? online_cpus() : n));
+				   ((jobs < 1) ? online_cpus() : jobs));
 
-	run_processes_parallel(n, get_next_task, start_failure,
+	run_processes_parallel(jobs, get_next_task, start_failure,
 			       task_finished, pp_cb);
 
 	trace2_region_leave(tr2_category, tr2_label, NULL);
