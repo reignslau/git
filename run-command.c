@@ -1496,7 +1496,6 @@ enum child_state {
 	GIT_CP_WAIT_CLEANUP,
 };
 
-int run_processes_parallel_ungroup;
 struct parallel_processes {
 	void *data;
 
@@ -1784,7 +1783,7 @@ static int pp_collect_finished(struct parallel_processes *pp)
 	return result;
 }
 
-static void run_processes_parallel_1(const struct run_process_parallel_opts *opts)
+void run_processes_parallel(const struct run_process_parallel_opts *opts)
 {
 	int i, code;
 	int output_timeout = 100;
@@ -1794,9 +1793,6 @@ static void run_processes_parallel_1(const struct run_process_parallel_opts *opt
 	const char *tr2_category = opts->tr2_category;
 	const char *tr2_label = opts->tr2_label;
 	const int do_trace2 = tr2_category && tr2_label;
-
-	/* unset for the next API user */
-	run_processes_parallel_ungroup = 0;
 
 	if (do_trace2)
 		trace2_region_enter_printf(tr2_category, tr2_label, NULL,
@@ -1842,26 +1838,6 @@ static void run_processes_parallel_1(const struct run_process_parallel_opts *opt
 		trace2_region_leave(tr2_category, tr2_label, NULL);
 }
 
-void run_processes_parallel(unsigned int jobs,
-			    get_next_task_fn get_next_task,
-			    start_failure_fn start_failure,
-			    task_finished_fn task_finished,
-			    void *pp_cb)
-{
-	const struct run_process_parallel_opts opts = {
-		.jobs = jobs,
-		.ungroup = run_processes_parallel_ungroup,
-
-		.get_next_task = get_next_task,
-		.start_failure = start_failure,
-		.task_finished = task_finished,
-
-		.data = pp_cb,
-	};
-
-	run_processes_parallel_1(&opts);
-}
-
 void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_task,
 				start_failure_fn start_failure,
 				task_finished_fn task_finished, void *pp_cb,
@@ -1872,7 +1848,6 @@ void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_tas
 		.tr2_label = tr2_label,
 
 		.jobs = jobs,
-		.ungroup = run_processes_parallel_ungroup,
 
 		.get_next_task = get_next_task,
 		.start_failure = start_failure,
@@ -1881,7 +1856,7 @@ void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn get_next_tas
 		.data = pp_cb,
 	};
 
-	run_processes_parallel_1(&opts);
+	run_processes_parallel(&opts);
 }
 
 int run_auto_maintenance(int quiet)

@@ -507,8 +507,10 @@ struct run_process_parallel_opts
 };
 
 /**
+ * Options are passed via the "struct run_process_parallel_opts" above.
+ *
  * Runs up to 'jobs' processes at the same time. Whenever a process can be
- * started, the callback get_next_task_fn is called to obtain the data
+ * started, the callback opts.get_next_task is called to obtain the data
  * required to start another child process.
  *
  * The children started via this function run in parallel. Their output
@@ -524,17 +526,8 @@ struct run_process_parallel_opts
  * NULL "struct strbuf *out" parameter, and are responsible for
  * emitting their own output, including dealing with any race
  * conditions due to writing in parallel to stdout and stderr.
- * The "ungroup" option can be enabled by setting the global
- * "run_processes_parallel_ungroup" to "1" before invoking
- * run_processes_parallel(), it will be set back to "0" as soon as the
- * API reads that setting.
  */
-extern int run_processes_parallel_ungroup;
-void run_processes_parallel(unsigned int jobs,
-			    get_next_task_fn,
-			    start_failure_fn,
-			    task_finished_fn,
-			    void *pp_cb);
+void run_processes_parallel(const struct run_process_parallel_opts *opts);
 void run_processes_parallel_tr2(unsigned int jobs, get_next_task_fn, start_failure_fn,
 				task_finished_fn, void *pp_cb,
 				const char *tr2_category, const char *tr2_label);
