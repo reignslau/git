@@ -459,6 +459,47 @@ typedef int (*task_finished_fn)(int result,
 				void *pp_task_cb);
 
 /**
+ * Option used by run_processes_parallel(), { 0 }-initialized means no
+ * options.
+ */
+struct run_process_parallel_opts
+{
+	/**
+	 * jobs: see 'jobs' in run_processes_parallel() below.
+	 */
+	int jobs;
+
+	/**
+	 * ungroup: see 'ungroup' in run_processes_parallel() below.
+	 */
+	unsigned int ungroup:1;
+
+	/**
+	 * get_next_task: See get_next_task_fn() above. This must be
+	 * specified.
+	 */
+	get_next_task_fn get_next_task;
+
+	/**
+	 * start_failure: See start_failure_fn() above. This can be
+	 * NULL to omit any special handling.
+	 */
+	start_failure_fn start_failure;
+
+	/**
+	 * task_finished: See task_finished_fn() above. This can be
+	 * NULL to omit any special handling.
+	 */
+	task_finished_fn task_finished;
+
+	/**
+	 * data: user data, will be passed as "pp_cb" to the callback
+	 * parameters.
+	 */
+	void *data;
+};
+
+/**
  * Runs up to 'jobs' processes at the same time. Whenever a process can be
  * started, the callback get_next_task_fn is called to obtain the data
  * required to start another child process.
@@ -466,9 +507,6 @@ typedef int (*task_finished_fn)(int result,
  * The children started via this function run in parallel. Their output
  * (both stdout and stderr) is routed to stderr in a manner that output
  * from different tasks does not interleave (but see "ungroup" below).
- *
- * start_failure_fn and task_finished_fn can be NULL to omit any
- * special handling.
  *
  * If the "ungroup" option isn't specified, the API will set the
  * "stdout_to_stderr" parameter in "struct child_process" and provide

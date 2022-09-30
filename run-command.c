@@ -1563,21 +1563,21 @@ static void handle_children_on_signal(int signo)
 }
 
 static void pp_init(struct parallel_processes *pp,
-		    unsigned int jobs,
-		    get_next_task_fn get_next_task,
-		    start_failure_fn start_failure,
-		    task_finished_fn task_finished,
-		    void *data, int ungroup)
+		    const struct run_process_parallel_opts *opts)
 {
 	unsigned int i;
+	void *data = opts->data;
+	get_next_task_fn get_next_task = opts->get_next_task;
+	start_failure_fn start_failure = opts->start_failure;
+	task_finished_fn task_finished = opts->task_finished;
 
-	if (!jobs)
+	if (!opts->jobs)
 		BUG("you must provide a non-zero number of jobs!");
 
-	pp->max_processes = jobs;
+	pp->max_processes = opts->jobs;
 
 	trace_printf("run_processes_parallel: preparing to run up to %d tasks",
-		     jobs);
+		     opts->jobs);
 
 	pp->data = data;
 	if (!get_next_task)
@@ -1590,12 +1590,12 @@ static void pp_init(struct parallel_processes *pp,
 	pp->nr_processes = 0;
 	pp->output_owner = 0;
 	pp->shutdown = 0;
-	pp->ungroup = ungroup;
-	CALLOC_ARRAY(pp->children, jobs);
+	pp->ungroup = opts->ungroup;
+	CALLOC_ARRAY(pp->children, opts->jobs);
 	if (!pp->ungroup)
-		CALLOC_ARRAY(pp->pfd, jobs);
+		CALLOC_ARRAY(pp->pfd, opts->jobs);
 
-	for (i = 0; i < jobs; i++) {
+	for (i = 0; i < opts->jobs; i++) {
 		strbuf_init(&pp->children[i].err, 0);
 		child_process_init(&pp->children[i].process);
 		if (pp->pfd) {
@@ -1793,14 +1793,20 @@ void run_processes_parallel(unsigned int jobs,
 	int i, code;
 	int output_timeout = 100;
 	int spawn_cap = 4;
-	int ungroup = run_processes_parallel_ungroup;
 	struct parallel_processes pp = PARALLEL_PROCESSES_INIT;
+	const struct run_process_parallel_opts opts = {
+		.jobs = jobs,
+		.get_next_task = get_next_task,
+		.start_failure = start_failure,
+		.task_finished = task_finished,
+		.ungroup = run_processes_parallel_ungroup,
+		.data = pp_cb,
+	};
 
 	/* unset for the next API user */
 	run_processes_parallel_ungroup = 0;
 
-	pp_init(&pp, jobs, get_next_task, start_failure, task_finished, pp_cb,
-		ungroup);
+	pp_init(&pp, &opts);
 	while (1) {
 		for (i = 0;
 		    i < spawn_cap && !pp.shutdown &&
@@ -1817,7 +1823,7 @@ void run_processes_parallel(unsigned int jobs,
 		}
 		if (!pp.nr_processes)
 			break;
-		if (ungroup) {
+		if (opts.ungroup) {
 			int i;
 
 			for (i = 0; i < pp.max_processes; i++)
